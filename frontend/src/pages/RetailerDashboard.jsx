@@ -4,6 +4,7 @@ import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, serverTimestamp
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { AuthContext } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import imageCompression from 'browser-image-compression';
 
 function RetailerDashboard() {
   const { user } = useContext(AuthContext);
@@ -41,10 +42,25 @@ function RetailerDashboard() {
   const uploadMedia = async () => {
     const urls = [];
     for (const file of mediaFiles) {
-      const storageRef = ref(storage, `products/${user.id}/${Date.now()}_${file.name}`);
-      const snapshot = await uploadBytesResumable(storageRef, file);
-      const downloadURL = await getDownloadURL(snapshot.ref);
       const isVideo = file.type.startsWith('video/');
+      let fileToUpload = file;
+
+      if (!isVideo) {
+        try {
+          const options = {
+            maxSizeMB: 1,
+            maxWidthOrHeight: 1920,
+            useWebWorker: true
+          };
+          fileToUpload = await imageCompression(file, options);
+        } catch (error) {
+          console.error("Compression Error:", error);
+        }
+      }
+
+      const storageRef = ref(storage, `products/${user.id}/${Date.now()}_${fileToUpload.name}`);
+      const snapshot = await uploadBytesResumable(storageRef, fileToUpload);
+      const downloadURL = await getDownloadURL(snapshot.ref);
       urls.push({ url: downloadURL, type: isVideo ? 'video' : 'image' });
     }
     return urls;
