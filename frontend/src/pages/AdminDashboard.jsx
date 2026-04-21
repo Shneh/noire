@@ -144,7 +144,7 @@ function AdminDashboard() {
                 <div key={h.id} style={{ borderBottom: '1px solid var(--accent)', padding: '10px 0' }}>
                   <div style={{ fontWeight: 500 }}>Time: {h.changed_at ? h.changed_at.toDate().toLocaleString() : 'Just now'}</div>
                   <div style={{ fontSize: '0.9rem', color: 'var(--text-light)' }}>
-                    {h.deleted ? <strong style={{color:'red'}}>DELETED</strong> : <>Name: {h.name} | Price: ${h.price} | Stock: {h.stock} | Desc: {h.description}</>}
+                    {h.deleted ? <strong style={{color:'red'}}>DELETED</strong> : <>Name: {h.name} | Price: ₹{h.price} | Stock: {h.stock} | Desc: {h.description}</>}
                   </div>
                 </div>
               ))}

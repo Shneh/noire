@@ -191,7 +191,7 @@ function RetailerDashboard() {
               <div key={p.id} style={{ backgroundColor: 'var(--white)', padding: '15px', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
                   <h3 style={{ fontSize: '1.1rem' }}>{p.name}</h3>
-                  <p style={{ color: 'var(--text-light)', fontSize: '0.9rem' }}>${p.price} | Stock: {p.stock} | Media files: {p.media?.length || (p.image_url ? 1 : 0)}</p>
+                  <p style={{ color: 'var(--text-light)', fontSize: '0.9rem' }}>₹{p.price} | Stock: {p.stock} | Media files: {p.media?.length || (p.image_url ? 1 : 0)}</p>
                 </div>
                 <div style={{ display: 'flex', gap: '10px' }}>
                   <button onClick={() => handleEdit(p)} className="btn-outline" style={{ padding: '8px 16px', fontSize: '0.8rem' }}>Edit</button>

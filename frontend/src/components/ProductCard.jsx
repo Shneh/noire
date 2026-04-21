@@ -34,7 +34,7 @@ function ProductCard({ product }) {
       <div style={{ padding: '15px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <h3 style={{ fontSize: '1.1rem', fontWeight: 500 }}>{product.name}</h3>
-          <span style={{ fontWeight: 600 }}>${product.price.toFixed(2)}</span>
+          <span style={{ fontWeight: 600 }}>₹{product.price.toFixed(2)}</span>
         </div>
         <p style={{ color: 'var(--text-light)', fontSize: '0.9rem', marginTop: '5px' }}>
           {product.category.toUpperCase()} - {product.genre.toUpperCase()}

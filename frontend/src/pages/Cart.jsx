@@ -26,7 +26,7 @@ function Cart() {
       return;
     }
     // Mock checkout process
-    alert(`Checkout successful for ${user.name}! Total: $${total.toFixed(2)}`);
+    alert(`Checkout successful for ${user.name}! Total: ₹${total.toFixed(2)}`);
     setCartItems([]);
     localStorage.removeItem('noire_cart');
     navigate('/');
@@ -59,7 +59,7 @@ function Cart() {
                   </div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '30px' }}>
-                  <span style={{ fontWeight: 600 }}>${item.price.toFixed(2)}</span>
+                  <span style={{ fontWeight: 600 }}>₹{item.price.toFixed(2)}</span>
                   <button onClick={() => handleRemove(idx)} style={{ color: 'var(--danger)', fontSize: '0.9rem', textDecoration: 'underline' }}>Remove</button>
                 </div>
               </li>
@@ -68,7 +68,7 @@ function Cart() {
           
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '30px', paddingTop: '20px', borderTop: '2px solid var(--primary)' }}>
             <span style={{ fontSize: '1.2rem', fontWeight: 600 }}>TOTAL</span>
-            <span style={{ fontSize: '1.5rem', fontWeight: 600 }}>${total.toFixed(2)}</span>
+            <span style={{ fontSize: '1.5rem', fontWeight: 600 }}>₹{total.toFixed(2)}</span>
           </div>
 
           <button onClick={handleCheckout} className="btn-primary" style={{ width: '100%', marginTop: '30px', padding: '15px' }}>
