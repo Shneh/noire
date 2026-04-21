@@ -27,7 +27,9 @@ function Home() {
 
   useEffect(() => {
     let result = products;
-    if (genreFilter) result = result.filter(p => p.genre === genreFilter);
+    if (genreFilter) {
+      result = result.filter(p => p.genre === genreFilter || (genreFilter !== 'unisex' && p.genre === 'unisex'));
+    }
     if (categoryFilter) result = result.filter(p => p.category === categoryFilter);
     
     setFilteredProducts(result);
