@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { db } from '../firebase';
+import { db, storage } from '../firebase';
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
+import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { AuthContext } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
@@ -8,8 +9,11 @@ function RetailerDashboard() {
   const { user } = useContext(AuthContext);
   const navigate = useNavigate();
   const [products, setProducts] = useState([]);
-  const [formData, setFormData] = useState({ name: '', description: '', price: '', genre: 'unisex', category: 'clothing', stock: 10, image_url: '' });
+  const [formData, setFormData] = useState({ name: '', description: '', price: '', genre: 'unisex', category: 'clothing', stock: 10 });
   const [editingId, setEditingId] = useState(null);
+  
+  const [mediaFiles, setMediaFiles] = useState([]);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     if (!user || (user.role !== 'retailer' && user.role !== 'admin')) {
@@ -34,6 +38,18 @@ function RetailerDashboard() {
     }
   };
 
+  const uploadMedia = async () => {
+    const urls = [];
+    for (const file of mediaFiles) {
+      const storageRef = ref(storage, `products/${user.id}/${Date.now()}_${file.name}`);
+      const snapshot = await uploadBytesResumable(storageRef, file);
+      const downloadURL = await getDownloadURL(snapshot.ref);
+      const isVideo = file.type.startsWith('video/');
+      urls.push({ url: downloadURL, type: isVideo ? 'video' : 'image' });
+    }
+    return urls;
+  };
+
   const logHistory = async (productId, data) => {
     try {
       await addDoc(collection(db, 'product_history'), {
@@ -41,35 +57,43 @@ function RetailerDashboard() {
         ...data,
         changed_at: serverTimestamp()
       });
-    } catch (err) {
-      console.error("Failed to log history", err);
-    }
+    } catch (err) {}
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setUploading(true);
     try {
+      const uploadedMedia = mediaFiles.length > 0 ? await uploadMedia() : null;
       const payload = { 
         ...formData, 
         price: parseFloat(formData.price),
         stock: parseInt(formData.stock)
       };
 
+      if (uploadedMedia) {
+        payload.media = uploadedMedia;
+      }
+
       if (editingId) {
         await updateDoc(doc(db, 'products', editingId), payload);
         await logHistory(editingId, payload);
       } else {
         payload.retailer_id = user.id;
+        payload.media = payload.media || []; // ensure it has array if no files uploaded
         const docRef = await addDoc(collection(db, 'products'), payload);
         await logHistory(docRef.id, payload);
       }
       
-      setFormData({ name: '', description: '', price: '', genre: 'unisex', category: 'clothing', stock: 10, image_url: '' });
+      setFormData({ name: '', description: '', price: '', genre: 'unisex', category: 'clothing', stock: 10 });
+      setMediaFiles([]);
+      e.target.reset(); // reset file input visually
       setEditingId(null);
       fetchProducts();
     } catch (err) {
       alert(err.message || 'Operation failed');
     }
+    setUploading(false);
   };
 
   const handleDelete = async (id, data) => {
@@ -92,9 +116,9 @@ function RetailerDashboard() {
       price: product.price,
       genre: product.genre,
       category: product.category,
-      stock: product.stock,
-      image_url: product.image_url || ''
+      stock: product.stock
     });
+    setMediaFiles([]);
   };
 
   return (
@@ -104,7 +128,8 @@ function RetailerDashboard() {
       <div className="grid grid-cols-2">
         <div style={{ backgroundColor: 'var(--white)', padding: '20px', borderRadius: '8px', alignSelf: 'start' }}>
           <h2>{editingId ? 'Edit Product' : 'Add New Product'}</h2>
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '20px' }}>
+          
+          <form id="product-form" onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '20px' }}>
             <input type="text" placeholder="Product Name" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} required />
             <textarea placeholder="Description" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} required />
             <input type="number" placeholder="Price" value={formData.price} onChange={e => setFormData({...formData, price: e.target.value})} step="0.01" required />
@@ -118,12 +143,25 @@ function RetailerDashboard() {
               <option value="jewellery">Jewellery</option>
             </select>
             <input type="number" placeholder="Stock" value={formData.stock} onChange={e => setFormData({...formData, stock: e.target.value})} />
-            <input type="text" placeholder="Image URL" value={formData.image_url} onChange={e => setFormData({...formData, image_url: e.target.value})} />
-            <button type="submit" className="btn-primary" style={{ marginTop: '10px' }}>
-              {editingId ? 'Update Product' : 'Create Product'}
+            
+            <div style={{ border: '1px dashed var(--accent)', padding: '15px', borderRadius: '4px' }}>
+              <label style={{ display: 'block', marginBottom: '10px', fontSize: '0.9rem', color: 'var(--text-light)' }}>
+                Upload multiple images & videos (optional if editing):
+              </label>
+              <input 
+                type="file" 
+                multiple 
+                accept="image/*,video/*" 
+                onChange={(e) => setMediaFiles(Array.from(e.target.files))} 
+              />
+              {mediaFiles.length > 0 && <p style={{ fontSize: '0.8rem', marginTop: '5px' }}>{mediaFiles.length} file(s) selected.</p>}
+            </div>
+
+            <button type="submit" className="btn-primary" style={{ marginTop: '10px' }} disabled={uploading}>
+              {uploading ? 'Processing & Uploading...' : (editingId ? 'Update Product' : 'Create Product')}
             </button>
             {editingId && (
-              <button type="button" className="btn-outline" onClick={() => {setEditingId(null); setFormData({ name: '', description: '', price: '', genre: 'unisex', category: 'clothing', stock: 10, image_url: '' })}}>
+              <button type="button" className="btn-outline" onClick={() => {setEditingId(null); setFormData({ name: '', description: '', price: '', genre: 'unisex', category: 'clothing', stock: 10 }); setMediaFiles([]); document.getElementById('product-form').reset();}}>
                 Cancel Edit
               </button>
             )}
@@ -137,7 +175,7 @@ function RetailerDashboard() {
               <div key={p.id} style={{ backgroundColor: 'var(--white)', padding: '15px', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
                   <h3 style={{ fontSize: '1.1rem' }}>{p.name}</h3>
-                  <p style={{ color: 'var(--text-light)', fontSize: '0.9rem' }}>${p.price} | Stock: {p.stock} | {p.genre}</p>
+                  <p style={{ color: 'var(--text-light)', fontSize: '0.9rem' }}>${p.price} | Stock: {p.stock} | Media files: {p.media?.length || (p.image_url ? 1 : 0)}</p>
                 </div>
                 <div style={{ display: 'flex', gap: '10px' }}>
                   <button onClick={() => handleEdit(p)} className="btn-outline" style={{ padding: '8px 16px', fontSize: '0.8rem' }}>Edit</button>

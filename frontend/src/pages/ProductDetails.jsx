@@ -10,6 +10,7 @@ function ProductDetails() {
   const [product, setProduct] = useState(null);
   const [suggested, setSuggested] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [activeMediaIndex, setActiveMediaIndex] = useState(0);
 
   useEffect(() => {
     fetchProduct();
@@ -36,6 +37,7 @@ function ProductDetails() {
           .slice(0, 4); // Show up to 4
       
       setSuggested(suggestions);
+      setActiveMediaIndex(0);
     } catch (err) {
       console.error(err);
     }
@@ -52,21 +54,47 @@ function ProductDetails() {
   if (loading) return <div style={{ textAlign: 'center', padding: '60px' }}>Loading...</div>;
   if (!product) return null;
 
+  const displayMedia = product.media && product.media.length > 0 ? product.media : (product.image_url ? [{ url: product.image_url, type: 'image' }] : []);
+
   return (
     <div className="container" style={{ paddingTop: '40px' }}>
       <div className="grid" style={{ gridTemplateColumns: '1fr 1fr', gap: '40px', marginBottom: '80px' }}>
         
-        {/* Left: Image */}
-        <div style={{ backgroundColor: '#EDEAE4', paddingBottom: '125%', position: 'relative', borderRadius: '8px', overflow: 'hidden' }}>
-          {product.image_url ? (
-            <img 
-              src={product.image_url} 
-              alt={product.name} 
-              style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }}
-            />
-          ) : (
-            <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', color: 'var(--text-light)' }}>
-              No Image
+        {/* Left: Interactive Media Viewer */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+          <div style={{ backgroundColor: '#EDEAE4', paddingBottom: '125%', position: 'relative', borderRadius: '8px', overflow: 'hidden' }}>
+            {displayMedia.length > 0 ? (
+              displayMedia[activeMediaIndex].type === 'video' ? (
+                <video src={displayMedia[activeMediaIndex].url} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }} autoPlay loop muted playsInline controls />
+              ) : (
+                <img src={displayMedia[activeMediaIndex].url} alt={product.name} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+              )
+            ) : (
+              <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', color: 'var(--text-light)' }}>No Image</div>
+            )}
+          </div>
+          
+          {displayMedia.length > 1 && (
+            <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '10px' }}>
+              {displayMedia.map((media, idx) => (
+                <div 
+                  key={idx} 
+                  onClick={() => setActiveMediaIndex(idx)}
+                  style={{ 
+                    width: '80px', height: '80px', flexShrink: 0, 
+                    borderRadius: '8px', overflow: 'hidden', cursor: 'pointer',
+                    border: activeMediaIndex === idx ? '2px solid var(--primary)' : '2px solid transparent',
+                    opacity: activeMediaIndex === idx ? 1 : 0.6,
+                    position: 'relative'
+                  }}
+                >
+                  {media.type === 'video' ? (
+                     <video src={media.url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ) : (
+                     <img src={media.url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  )}
+                </div>
+              ))}
             </div>
           )}
         </div>
