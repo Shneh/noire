@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { db, storage } from '../firebase';
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
-import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { AuthContext } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import imageCompression from 'browser-image-compression';
@@ -50,7 +50,7 @@ function RetailerDashboard() {
           const options = {
             maxSizeMB: 1,
             maxWidthOrHeight: 1920,
-            useWebWorker: true
+            useWebWorker: false
           };
           fileToUpload = await imageCompression(file, options);
         } catch (error) {
@@ -58,8 +58,9 @@ function RetailerDashboard() {
         }
       }
 
-      const storageRef = ref(storage, `products/${user.id}/${Date.now()}_${fileToUpload.name}`);
-      const snapshot = await uploadBytesResumable(storageRef, fileToUpload);
+      const fileName = fileToUpload.name || `media_${Date.now()}`;
+      const storageRef = ref(storage, `products/${user.id}/${Date.now()}_${fileName}`);
+      const snapshot = await uploadBytes(storageRef, fileToUpload);
       const downloadURL = await getDownloadURL(snapshot.ref);
       urls.push({ url: downloadURL, type: isVideo ? 'video' : 'image' });
     }
