@@ -6,6 +6,7 @@ import Login from './pages/Login';
 import AdminDashboard from './pages/AdminDashboard';
 import RetailerDashboard from './pages/RetailerDashboard';
 import Cart from './pages/Cart';
+import ProductDetails from './pages/ProductDetails';
 import { AuthProvider } from './context/AuthContext';
 
 function App() {
@@ -19,6 +20,7 @@ function App() {
               <Route path="/" element={<Home />} />
               <Route path="/login" element={<Login />} />
               <Route path="/cart" element={<Cart />} />
+              <Route path="/product/:id" element={<ProductDetails />} />
               <Route path="/admin" element={<AdminDashboard />} />
               <Route path="/retailer" element={<RetailerDashboard />} />
             </Routes>

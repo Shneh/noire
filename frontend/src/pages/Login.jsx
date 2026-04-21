@@ -124,17 +124,23 @@ function Login() {
         </form>
 
         <div style={{ textAlign: 'center', marginTop: '20px', fontSize: '0.9rem' }}>
-          <button onClick={() => setIsRegister(!isRegister)} style={{ textDecoration: 'underline', color: 'var(--text-light)' }}>
-            {isRegister ? 'Already have an account? Login' : "Don't have an account? Register"}
-          </button>
+          {roleMode === 'customer' ? (
+            <button onClick={() => setIsRegister(!isRegister)} style={{ textDecoration: 'underline', color: 'var(--text-light)' }}>
+              {isRegister ? 'Already have an account? Login' : "Don't have an account? Register"}
+            </button>
+          ) : (
+            <p style={{ color: 'var(--text-light)' }}>Registration is restricted for this role.</p>
+          )}
         </div>
 
-        <div style={{ marginTop: '30px', textAlign: 'center' }}>
-           <button onClick={handleGoogleLogin} className="btn-outline" style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
-             <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" alt="Google" width="18" height="18" />
-             Continue with Google
-           </button>
-        </div>
+        {roleMode === 'customer' && (
+          <div style={{ marginTop: '30px', textAlign: 'center' }}>
+             <button onClick={handleGoogleLogin} className="btn-outline" style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
+               <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" alt="Google" width="18" height="18" />
+               Continue with Google
+             </button>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -1,16 +1,11 @@
 import React from 'react';
-import { Plus } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 function ProductCard({ product }) {
-  const handleAddToCart = () => {
-    const currentCart = JSON.parse(localStorage.getItem('noire_cart') || '[]');
-    currentCart.push(product);
-    localStorage.setItem('noire_cart', JSON.stringify(currentCart));
-    alert(`${product.name} added to cart!`);
-  };
+  const navigate = useNavigate();
 
   return (
-    <div className="product-card" style={{ 
+    <div className="product-card" onClick={() => navigate(`/product/${product.id}`)} style={{ 
       backgroundColor: 'var(--white)', 
       borderRadius: '8px', 
       overflow: 'hidden',
@@ -30,27 +25,6 @@ function ProductCard({ product }) {
             No Image
           </div>
         )}
-        <button 
-          onClick={handleAddToCart}
-          className="add-to-cart-btn"
-          style={{
-            position: 'absolute',
-            bottom: '10px',
-            right: '10px',
-            backgroundColor: 'var(--primary)',
-            color: 'var(--white)',
-            borderRadius: '50%',
-            width: '40px',
-            height: '40px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            opacity: 0,
-            transition: 'opacity 0.3s ease, transform 0.2s ease'
-          }}
-        >
-          <Plus size={20} />
-        </button>
       </div>
 
       <div style={{ padding: '15px' }}>
@@ -67,12 +41,6 @@ function ProductCard({ product }) {
         .product-card:hover {
           transform: translateY(-5px);
           box-shadow: 0 10px 20px rgba(0,0,0,0.05);
-        }
-        .product-card:hover .add-to-cart-btn {
-          opacity: 1;
-        }
-        .add-to-cart-btn:hover {
-          transform: scale(1.1);
         }
       `}} />
     </div>
