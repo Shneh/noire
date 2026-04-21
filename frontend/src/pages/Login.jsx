@@ -1,7 +1,8 @@
-import React, { useState, useContext } from 'react';
+import React, { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import axios from 'axios';
-import { AuthContext } from '../context/AuthContext';
+import { auth, db, googleProvider } from '../firebase';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, updateProfile } from 'firebase/auth';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
 
 function useQuery() {
   return new URLSearchParams(useLocation().search);
@@ -12,28 +13,75 @@ function Login() {
   const roleMode = query.get('role') || 'customer';
   const redirectParams = query.get('redirect');
   const navigate = useNavigate();
-  const { login } = useContext(AuthContext);
 
   const [isRegister, setIsRegister] = useState(false);
   const [formData, setFormData] = useState({ name: '', email: '', password: '' });
   const [error, setError] = useState('');
 
-  const handleSubmit = async (e) => {
+  const routeUser = (role) => {
+    if (redirectParams === 'cart') navigate('/cart');
+    else if (role === 'admin') navigate('/admin');
+    else if (role === 'retailer') navigate('/retailer');
+    else navigate('/');
+  };
+
+  const handleEmailSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    const endpoint = isRegister ? 'register' : 'login';
-    const payload = isRegister ? { ...formData, role: roleMode } : { email: formData.email, password: formData.password };
-
+    
     try {
-      const res = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/auth/${endpoint}`, payload);
-      login(res.data.user, res.data.token);
-      
-      if (redirectParams === 'cart') navigate('/cart');
-      else if (res.data.user.role === 'admin') navigate('/admin');
-      else if (res.data.user.role === 'retailer') navigate('/retailer');
-      else navigate('/');
+      if (isRegister) {
+        const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
+        const user = userCredential.user;
+        
+        await updateProfile(user, { displayName: formData.name });
+        
+        // Save user role in Firestore
+        await setDoc(doc(db, 'users', user.uid), {
+          name: formData.name,
+          email: formData.email,
+          role: roleMode
+        });
+        
+        routeUser(roleMode);
+      } else {
+        const userCredential = await signInWithEmailAndPassword(auth, formData.email, formData.password);
+        const user = userCredential.user;
+        
+        // Fetch role to know where to route
+        const docRef = await getDoc(doc(db, 'users', user.uid));
+        const role = docRef.exists() ? docRef.data().role : 'customer';
+        
+        routeUser(role);
+      }
     } catch (err) {
-      setError(err.response?.data?.error || 'Authentication failed');
+      setError(err.message.replace('Firebase:', '').trim());
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    setError('');
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      const user = result.user;
+      
+      // Check if user exists in Firestore
+      const docRef = await getDoc(doc(db, 'users', user.uid));
+      let role = 'customer';
+      if (!docRef.exists()) {
+        await setDoc(doc(db, 'users', user.uid), {
+          name: user.displayName,
+          email: user.email,
+          role: roleMode
+        });
+        role = roleMode;
+      } else {
+        role = docRef.data().role || 'customer';
+      }
+      
+      routeUser(role);
+    } catch (err) {
+      setError(err.message.replace('Firebase:', '').trim());
     }
   };
 
@@ -46,7 +94,7 @@ function Login() {
 
         {error && <div style={{ backgroundColor: 'var(--danger)', color: 'white', padding: '10px', borderRadius: '4px', marginBottom: '20px', fontSize: '0.9rem' }}>{error}</div>}
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <form onSubmit={handleEmailSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           {isRegister && (
             <input 
               type="text" 
@@ -81,9 +129,8 @@ function Login() {
           </button>
         </div>
 
-        {/* Note on Google Login required by prompt: "It would be better if the login is provided for Google Google oriented also." */}
         <div style={{ marginTop: '30px', textAlign: 'center' }}>
-           <button className="btn-outline" style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }} onClick={() => alert("Google Auth placeholder. Needs OAuth Client ID config.")}>
+           <button onClick={handleGoogleLogin} className="btn-outline" style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
              <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" alt="Google" width="18" height="18" />
              Continue with Google
            </button>

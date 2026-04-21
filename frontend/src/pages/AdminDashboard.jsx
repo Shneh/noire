@@ -1,7 +1,8 @@
 import React, { useEffect, useContext, useState } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { db } from '../firebase';
+import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 
 function AdminDashboard() {
   const { user } = useContext(AuthContext);
@@ -18,10 +19,19 @@ function AdminDashboard() {
   const viewHistory = async () => {
     if (!productIdToCheck) return;
     try {
-      const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/products/${productIdToCheck}/history`);
-      setHistory(res.data);
+      const q = query(
+        collection(db, 'product_history'), 
+        where('product_id', '==', productIdToCheck)
+      );
+      const snapshot = await getDocs(q);
+      
+      // Sort in memory because Firestore requires index for dynamic composite queries
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      data.sort((a, b) => b.changed_at?.toMillis() - a.changed_at?.toMillis());
+      
+      setHistory(data);
     } catch (err) {
-      alert('Could not fetch history: ' + (err.response?.data?.error || err.message));
+      alert('Could not fetch history: ' + err.message);
     }
   };
 
@@ -60,9 +70,9 @@ function AdminDashboard() {
           <div style={{ marginTop: '20px', maxHeight: '300px', overflowY: 'auto' }}>
             {history.map(h => (
               <div key={h.id} style={{ borderBottom: '1px solid var(--accent)', padding: '10px 0' }}>
-                <div style={{ fontWeight: 500 }}>Time: {new Date(h.changed_at).toLocaleString()}</div>
+                <div style={{ fontWeight: 500 }}>Time: {h.changed_at ? h.changed_at.toDate().toLocaleString() : 'Just now'}</div>
                 <div style={{ fontSize: '0.9rem', color: 'var(--text-light)' }}>
-                  Name: {h.name} | Price: ${h.price} | Stock: {h.stock} | Desc: {h.description}
+                  {h.deleted ? <strong style={{color:'red'}}>DELETED</strong> : <>Name: {h.name} | Price: ${h.price} | Stock: {h.stock} | Desc: {h.description}</>}
                 </div>
               </div>
             ))}

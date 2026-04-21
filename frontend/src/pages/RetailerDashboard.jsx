@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
-import axios from 'axios';
+import { db } from '../firebase';
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { AuthContext } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
@@ -20,42 +21,65 @@ function RetailerDashboard() {
 
   const fetchProducts = async () => {
     try {
-      const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/products`);
-      // If retailer, filter only theirs. If admin, see all.
-      // Assuming retailer UI for simplicity just filters visually if the API returns all
+      const snapshot = await getDocs(collection(db, 'products'));
+      const allProds = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      
       if (user.role === 'retailer') {
-        setProducts(res.data.filter(p => p.retailer_id === user.id));
+        setProducts(allProds.filter(p => p.retailer_id === user.id));
       } else {
-        setProducts(res.data);
+        setProducts(allProds);
       }
     } catch (err) {
       console.error(err);
     }
   };
 
+  const logHistory = async (productId, data) => {
+    try {
+      await addDoc(collection(db, 'product_history'), {
+        product_id: productId,
+        ...data,
+        changed_at: serverTimestamp()
+      });
+    } catch (err) {
+      console.error("Failed to log history", err);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      const payload = { 
+        ...formData, 
+        price: parseFloat(formData.price),
+        stock: parseInt(formData.stock)
+      };
+
       if (editingId) {
-        await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/products/${editingId}`, formData);
+        await updateDoc(doc(db, 'products', editingId), payload);
+        await logHistory(editingId, payload);
       } else {
-        await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/products`, formData);
+        payload.retailer_id = user.id;
+        const docRef = await addDoc(collection(db, 'products'), payload);
+        await logHistory(docRef.id, payload);
       }
+      
       setFormData({ name: '', description: '', price: '', genre: 'unisex', category: 'clothing', stock: 10, image_url: '' });
       setEditingId(null);
       fetchProducts();
     } catch (err) {
-      alert(err.response?.data?.error || 'Operation failed');
+      alert(err.message || 'Operation failed');
     }
   };
 
-  const handleDelete = async (id) => {
+  const handleDelete = async (id, data) => {
     if (window.confirm("Are you sure you want to delete this product?")) {
       try {
-        await axios.delete(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/products/${id}`);
+        await deleteDoc(doc(db, 'products', id));
+        await logHistory(id, { ...data, deleted: true });
         fetchProducts();
       } catch (err) {
-         alert(err.response?.data?.error || 'Delete failed');
+         alert(err.message || 'Delete failed');
       }
     }
   };
@@ -117,7 +141,7 @@ function RetailerDashboard() {
                 </div>
                 <div style={{ display: 'flex', gap: '10px' }}>
                   <button onClick={() => handleEdit(p)} className="btn-outline" style={{ padding: '8px 16px', fontSize: '0.8rem' }}>Edit</button>
-                  <button onClick={() => handleDelete(p.id)} className="btn-primary" style={{ padding: '8px 16px', fontSize: '0.8rem', backgroundColor: 'var(--danger)' }}>Delete</button>
+                  <button onClick={() => handleDelete(p.id, p)} className="btn-primary" style={{ padding: '8px 16px', fontSize: '0.8rem', backgroundColor: 'var(--danger)' }}>Delete</button>
                 </div>
               </div>
             ))}

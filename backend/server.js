@@ -1,30 +1,23 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const path = require('path');
-const dotenv = require('dotenv');
-
-dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 5000;
-
 app.use(cors());
 app.use(express.json());
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// Routes
-const authRoutes = require('./routes/auth');
-const productRoutes = require('./routes/products');
-const aiRoutes = require('./routes/ai');
+// Load Routers
+const aiRouter = require('./routes/ai');
 
-app.use('/api/auth', authRoutes);
-app.use('/api/products', productRoutes);
-app.use('/api/ai', aiRoutes);
+// Use Routers
+app.use('/api/ai', aiRouter);
 
-app.get('/', (req, res) => {
-    res.send('Noiré API is running');
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+    res.json({ status: 'ok', message: 'Backend proxy is running securely.' });
 });
 
+const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
+    console.log(`Server running on port ${PORT}`);
 });

@@ -1,85 +1,70 @@
 const express = require('express');
 const router = express.Router();
 const { GoogleGenerativeAI } = require('@google/generative-ai');
-const db = require('../db/database');
 
-const apiKey = process.env.GEMINI_API_KEY;
 let genAI = null;
-
-if (apiKey) {
-    genAI = new GoogleGenerativeAI(apiKey);
-} else {
-    console.warn('GEMINI_API_KEY is not set. AI Features will work in mock mode.');
+if (process.env.GEMINI_API_KEY) {
+    genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 }
 
-// Get all products wrapper for AI context
-const getAllProducts = () => new Promise((resolve, reject) => {
-    db.all('SELECT id, name, description, genre, category, price FROM products', [], (err, rows) => {
-        if (err) reject(err);
-        else resolve(rows);
-    });
-});
-
 router.post('/search', async (req, res) => {
+    const { query, productsData } = req.body;
+
+    if (!query) return res.status(400).json({ error: 'Search query is required' });
+    if (!productsData || !Array.isArray(productsData)) {
+        return res.status(400).json({ error: 'Available products data must be provided for AI context' });
+    }
+
+    if (!genAI) {
+        // Fallback rudimentary search
+        const qLower = query.toLowerCase();
+        const matches = productsData.filter(p => p.name.toLowerCase().includes(qLower) || p.description.toLowerCase().includes(qLower) || p.category.toLowerCase().includes(qLower));
+        return res.json({ message: "Mock match due to missing AI Key", suggested_products: matches });
+    }
+
     try {
-        const { query } = req.body;
-        if (!query) return res.status(400).json({ error: 'Search query is required' });
-
-        const products = await getAllProducts();
-
-        if (!genAI) {
-            // Mock AI behavior if no key
-            const results = products.filter(p => 
-                p.name.toLowerCase().includes(query.toLowerCase()) || 
-                p.description.toLowerCase().includes(query.toLowerCase())
-            );
-            return res.json({ 
-                message: "Here are some mock suggestions based on a basic text match.", 
-                suggested_products: results 
-            });
-        }
-
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        const catalogString = JSON.stringify(productsData);
 
         const prompt = `
-            You are a stylish AI assistant for Noiré, a Korean Fashion E-commerce platform.
-            The user searched for: "${query}"
-            
-            Here is the JSON list of available products on our platform:
-            ${JSON.stringify(products)}
-
-            Based on the user's search and the available products, please return:
-            1. A friendly, aesthetic suggested message (like a shopping assistant).
-            2. A JSON array of the recommended 'id' integers from the available products.
-
-            Return the response strictly in this exact JSON format, no markdown outside of the JSON:
-            {
-                "message": "Assistant's friendly message",
-                "recommended_ids": [1, 2, 4]
-            }
+        A user is searching an online Korean fashion store. 
+        Their query: "${query}"
+        
+        Here is the JSON of all available products:
+        ${catalogString}
+        
+        Analyze the intent of the user's query and find the exact "id" fields of the products that best match their fashion needs.
+        Return ONLY a raw JSON array of matching product IDs as strings or integers.
+        If no products match, return an empty array [].
+        Do not wrap the array in markdown backticks or formatting.
         `;
 
         const result = await model.generateContent(prompt);
-        const textResponse = result.response.text();
+        let textResult = result.response.text().trim();
         
-        // Clean markdown backticks if any
-        let cleanJson = textResponse.replace(/```json/g, '').replace(/```/g, '').trim();
-        
-        try {
-            const parsedAiResult = JSON.parse(cleanJson);
-            const suggested_products = products.filter(p => parsedAiResult.recommended_ids.includes(p.id));
+        // Strip markdown if AI misbehaves
+        if (textResult.startsWith('```json')) textResult = textResult.substring(7);
+        if (textResult.endsWith('```')) textResult = textResult.substring(0, textResult.length - 3);
+        textResult = textResult.trim();
 
-            res.json({
-                message: parsedAiResult.message,
-                suggested_products
-            });
-        } catch (parseError) {
-            console.error('Failed to parse AI response:', cleanJson);
-            res.status(500).json({ error: 'AI failed to process the request logically', parsedText: cleanJson });
+        let matchingIds = [];
+        try {
+            matchingIds = JSON.parse(textResult);
+        } catch (e) {
+            console.error("AI response not valid JSON:", textResult);
         }
 
+        // Map IDs back to full products
+        matchingIds = matchingIds.map(id => String(id));
+        const finalProducts = productsData.filter(p => matchingIds.includes(String(p.id)));
+
+        res.json({
+            message: "I found these pieces that match your vibe.",
+            suggested_products: finalProducts
+        });
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        console.error(err);
+        res.status(500).json({ error: 'AI processing failed' });
     }
 });
 

@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
+import { db } from '../firebase';
+import { collection, getDocs, query, where } from 'firebase/firestore';
 import axios from 'axios';
 import ProductCard from '../components/ProductCard';
 import { Search, Sparkles } from 'lucide-react';
 
-function useQuery() {
+function useURLQuery() {
   return new URLSearchParams(useLocation().search);
 }
 
@@ -14,9 +16,10 @@ function Home() {
   const [searchQuery, setSearchQuery] = useState('');
   const [aiMessage, setAiMessage] = useState('');
   const [loading, setLoading] = useState(false);
-  const query = useQuery();
-  const genreFilter = query.get('genre');
-  const categoryFilter = query.get('category');
+  
+  const urlQuery = useURLQuery();
+  const genreFilter = urlQuery.get('genre');
+  const categoryFilter = urlQuery.get('category');
 
   useEffect(() => {
     fetchProducts();
@@ -24,21 +27,18 @@ function Home() {
 
   useEffect(() => {
     let result = products;
-    if (genreFilter) {
-      result = result.filter(p => p.genre === genreFilter);
-    }
-    if (categoryFilter) {
-      result = result.filter(p => p.category === categoryFilter);
-    }
+    if (genreFilter) result = result.filter(p => p.genre === genreFilter);
+    if (categoryFilter) result = result.filter(p => p.category === categoryFilter);
+    
     setFilteredProducts(result);
-    setAiMessage(''); // Clear AI message on normal navigation
+    setAiMessage('');
   }, [genreFilter, categoryFilter, products]);
 
   const fetchProducts = async () => {
     try {
-      const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/products`);
-      setProducts(res.data);
-      setFilteredProducts(res.data);
+      const snapshot = await getDocs(collection(db, 'products'));
+      const productList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setProducts(productList);
     } catch (err) {
       console.error('Failed to fetch products', err);
     }
@@ -51,7 +51,11 @@ function Home() {
     setLoading(true);
     setAiMessage('');
     try {
-      const res = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/ai/search`, { query: searchQuery });
+      // Send the current available products to the backend so the AI can filter them without a DB connection
+      const res = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/ai/search`, { 
+        query: searchQuery, 
+        productsData: products 
+      });
       setAiMessage(res.data.message);
       setFilteredProducts(res.data.suggested_products);
     } catch (err) {
@@ -67,7 +71,6 @@ function Home() {
 
   return (
     <div>
-      {/* Hero Section */}
       <div style={{ backgroundColor: 'var(--accent)', padding: '60px 20px', textAlign: 'center', marginBottom: '40px' }}>
         <h1 style={{ fontSize: '3rem', fontWeight: 300, marginBottom: '20px', letterSpacing: '2px' }}>
           {genreFilter ? genreFilter.toUpperCase() : 'NEW ARRIVALS'}
@@ -78,13 +81,10 @@ function Home() {
       </div>
 
       <div className="container">
-        {/* Search Bar */}
-        <form onSubmit={handleAISearch} style={{ 
-          display: 'flex', gap: '10px', marginBottom: '40px', maxWidth: '600px', margin: '0 auto 40px auto', position: 'relative'
-        }}>
+        <form onSubmit={handleAISearch} style={{ display: 'flex', gap: '10px', marginBottom: '40px', maxWidth: '600px', margin: '0 auto 40px auto', position: 'relative' }}>
           <input 
             type="text" 
-            placeholder="Describe what you want... (e.g. 'A black casual shirt for weekend')" 
+            placeholder="Describe what you want..." 
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             style={{ paddingLeft: '45px', borderRadius: '30px' }}
@@ -104,7 +104,6 @@ function Home() {
           </div>
         )}
 
-        {/* Product Grid */}
         <div className="grid grid-cols-4">
           {filteredProducts.map(product => (
             <ProductCard key={product.id} product={product} />
