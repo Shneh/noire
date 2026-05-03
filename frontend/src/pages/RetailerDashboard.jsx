@@ -45,19 +45,6 @@ function RetailerDashboard() {
       const isVideo = file.type.startsWith('video/');
       let fileToUpload = file;
 
-      if (!isVideo) {
-        try {
-          const options = {
-            maxSizeMB: 1,
-            maxWidthOrHeight: 1920,
-            useWebWorker: true
-          };
-          fileToUpload = await imageCompression(file, options);
-        } catch (error) {
-          console.error("Compression Error:", error);
-        }
-      }
-
       // Keep original file extension
       const extension = file.name ? file.name.split('.').pop() : (isVideo ? 'mp4' : 'jpg');
       const fileName = `media_${Date.now()}_${Math.random().toString(36).substring(7)}.${extension}`;
