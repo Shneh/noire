@@ -35,25 +35,41 @@ function Cart() {
     localStorage.setItem('noire_cart', JSON.stringify(newItems));
   };
 
+  const setupRecaptcha = () => {
+    if (!window.recaptchaVerifier) {
+      window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+        'size': 'invisible'
+      });
+    }
+  };
+
   const sendOtp = async () => {
     if (!user) return alert("You must be logged in to verify your phone number.");
     if (!phoneNumber) return alert("Please enter a valid phone number.");
-    if (phoneNumber.length < 10) return alert("Please enter a valid 10-digit phone number.");
-    
-    // Using a mock OTP since Firebase Phone Auth is not configured in the user's console
-    setIsVerifying(true);
-    setConfirmationResult('123456'); // Simulated OTP
-    
-    alert("OTP Sent! (For this demo, your OTP is: 123456)");
+    try {
+      setupRecaptcha();
+      const appVerifier = window.recaptchaVerifier;
+      const formattedPhone = phoneNumber.startsWith('+') ? phoneNumber : `+91${phoneNumber}`; // Default to India if no country code
+      
+      const confResult = await linkWithPhoneNumber(auth.currentUser, formattedPhone, appVerifier);
+      setConfirmationResult(confResult);
+      setIsVerifying(true);
+      alert("OTP Sent to your phone!");
+    } catch (error) {
+      console.error(error);
+      alert(`Failed to send OTP: ${error.message}`);
+    }
   };
 
   const verifyOtp = async () => {
-    if (otp === confirmationResult) {
+    try {
+      await confirmationResult.confirm(otp);
       setIsVerified(true);
       setIsVerifying(false);
       alert("Phone number verified successfully!");
-    } else {
-      alert("Invalid OTP. Please try again.");
+    } catch (error) {
+      console.error(error);
+      alert("Invalid OTP. Please check the code and try again.");
     }
   };
 
