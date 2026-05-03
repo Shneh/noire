@@ -50,7 +50,7 @@ function RetailerDashboard() {
           const options = {
             maxSizeMB: 1,
             maxWidthOrHeight: 1920,
-            useWebWorker: false
+            useWebWorker: true
           };
           fileToUpload = await imageCompression(file, options);
         } catch (error) {
@@ -58,12 +58,20 @@ function RetailerDashboard() {
         }
       }
 
-      const fileName = fileToUpload.name || `media_${Date.now()}`;
-      const storageRef = ref(storage, `products/${user.id}/${Date.now()}_${fileName}`);
-      const snapshot = await uploadBytes(storageRef, fileToUpload);
-      const downloadURL = await getDownloadURL(snapshot.ref);
-      urls.push({ url: downloadURL, type: isVideo ? 'video' : 'image' });
+      // Keep original file extension
+      const extension = file.name ? file.name.split('.').pop() : (isVideo ? 'mp4' : 'jpg');
+      const fileName = `media_${Date.now()}_${Math.random().toString(36).substring(7)}.${extension}`;
+      const storageRef = ref(storage, `products/${fileName}`);
+      
+      await uploadBytes(storageRef, fileToUpload);
+      const downloadURL = await getDownloadURL(storageRef);
+      
+      urls.push({
+        url: downloadURL,
+        type: isVideo ? 'video' : 'image'
+      });
     }
+
     return urls;
   };
 

@@ -105,7 +105,7 @@ function ProductDetails() {
             {product.genre} • {product.category}
           </p>
           <h1 style={{ fontSize: '2.5rem', fontWeight: 300, marginBottom: '20px' }}>{product.name}</h1>
-          <p style={{ fontSize: '1.5rem', fontWeight: 500, marginBottom: '30px' }}>${product.price.toFixed(2)}</p>
+          <p style={{ fontSize: '1.5rem', fontWeight: 500, marginBottom: '30px' }}>₹{product.price.toFixed(2)}</p>
           
           <div style={{ color: 'var(--text-light)', lineHeight: '1.8', marginBottom: '40px' }}>
             {product.description}
