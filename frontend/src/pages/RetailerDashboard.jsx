@@ -44,9 +44,27 @@ function RetailerDashboard() {
     const formDataObj = new FormData();
     for (let i = 0; i < mediaFiles.length; i++) {
       const file = mediaFiles[i];
+      const isVideo = file.type?.startsWith('video/');
+      let fileToUpload = file;
+
+      if (!isVideo) {
+        setUploadProgress(`Compressing image ${i + 1} of ${mediaFiles.length}...`);
+        try {
+          const options = {
+            maxSizeMB: 0.8,
+            maxWidthOrHeight: 1080,
+            useWebWorker: true
+          };
+          fileToUpload = await imageCompression(file, options);
+        } catch (error) {
+          console.error("Compression Error:", error);
+          // Fallback to original file if compression fails
+          fileToUpload = file;
+        }
+      }
+
       setUploadProgress(`Preparing file ${i + 1} of ${mediaFiles.length}...`);
-      // Use the raw file from the input to bypass any browser compression bugs
-      formDataObj.append('media', file, file.name || `media_${Date.now()}`);
+      formDataObj.append('media', fileToUpload, fileToUpload.name || `media_${Date.now()}`);
     }
 
     setUploadProgress('Uploading to secure server (this may take a moment)...');

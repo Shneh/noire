@@ -67,7 +67,7 @@ function ProductDetails() {
               displayMedia[activeMediaIndex].type === 'video' ? (
                 <video src={displayMedia[activeMediaIndex].url} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }} autoPlay loop muted playsInline controls />
               ) : (
-                <img src={displayMedia[activeMediaIndex].url} alt={product.name} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+                <img src={displayMedia[activeMediaIndex].url} alt={product.name} loading="lazy" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
               )
             ) : (
               <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', color: 'var(--text-light)' }}>No Image</div>
@@ -91,7 +91,7 @@ function ProductDetails() {
                   {media.type === 'video' ? (
                      <video src={media.url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   ) : (
-                     <img src={media.url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                     <img src={media.url} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   )}
                 </div>
               ))}
