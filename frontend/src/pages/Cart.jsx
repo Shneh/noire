@@ -44,6 +44,7 @@ function Cart() {
   };
 
   const sendOtp = async () => {
+    if (!user) return alert("You must be logged in to verify your phone number.");
     if (!phoneNumber) return alert("Please enter a valid phone number.");
     try {
       setupRecaptcha();
@@ -56,7 +57,7 @@ function Cart() {
       alert("OTP Sent!");
     } catch (error) {
       console.error(error);
-      alert("Failed to send OTP. Ensure Firebase Phone Auth is enabled and domain is authorized.");
+      alert(`Failed to send OTP: ${error.message}`);
     }
   };
 
