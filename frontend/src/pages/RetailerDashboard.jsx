@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { db, storage } from '../firebase';
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { AuthContext } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import imageCompression from 'browser-image-compression';
@@ -15,6 +15,7 @@ function RetailerDashboard() {
   
   const [mediaFiles, setMediaFiles] = useState([]);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState('');
 
   useEffect(() => {
     if (!user || (user.role !== 'retailer' && user.role !== 'admin')) {
@@ -41,8 +42,9 @@ function RetailerDashboard() {
 
   const uploadMedia = async () => {
     const urls = [];
-    for (const file of mediaFiles) {
-      const isVideo = file.type.startsWith('video/');
+    for (let i = 0; i < mediaFiles.length; i++) {
+      const file = mediaFiles[i];
+      const isVideo = file.type?.startsWith('video/');
       let fileToUpload = file;
 
       // Keep original file extension
@@ -50,9 +52,23 @@ function RetailerDashboard() {
       const fileName = `media_${Date.now()}_${Math.random().toString(36).substring(7)}.${extension}`;
       const storageRef = ref(storage, `products/${fileName}`);
       
-      await uploadBytes(storageRef, fileToUpload);
+      const uploadTask = uploadBytesResumable(storageRef, fileToUpload);
+
+      await new Promise((resolve, reject) => {
+        uploadTask.on('state_changed', 
+          (snapshot) => {
+            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+            setUploadProgress(`Uploading file ${i + 1} of ${mediaFiles.length}: ${Math.round(progress)}%`);
+          }, 
+          (error) => {
+            console.error("Firebase Upload Error:", error);
+            reject(new Error(error.message || 'Firebase storage upload failed'));
+          }, 
+          () => resolve()
+        );
+      });
+
       const downloadURL = await getDownloadURL(storageRef);
-      
       urls.push({
         url: downloadURL,
         type: isVideo ? 'video' : 'image'
@@ -75,8 +91,10 @@ function RetailerDashboard() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setUploading(true);
+    setUploadProgress('Starting upload...');
     try {
       const uploadedMedia = mediaFiles.length > 0 ? await uploadMedia() : null;
+      setUploadProgress('Saving product details...');
       const payload = { 
         ...formData, 
         price: parseFloat(formData.price),
@@ -103,9 +121,11 @@ function RetailerDashboard() {
       setEditingId(null);
       fetchProducts();
     } catch (err) {
+      console.error(err);
       alert(err.message || 'Operation failed');
     }
     setUploading(false);
+    setUploadProgress('');
   };
 
   const handleDelete = async (id, data) => {
@@ -170,7 +190,7 @@ function RetailerDashboard() {
             </div>
 
             <button type="submit" className="btn-primary" style={{ marginTop: '10px' }} disabled={uploading}>
-              {uploading ? 'Processing & Uploading...' : (editingId ? 'Update Product' : 'Create Product')}
+              {uploading ? (uploadProgress || 'Processing...') : (editingId ? 'Update Product' : 'Create Product')}
             </button>
             {editingId && (
               <button type="button" className="btn-outline" onClick={() => {setEditingId(null); setFormData({ name: '', description: '', price: '', genre: 'unisex', category: 'clothing', stock: 10 }); setMediaFiles([]); document.getElementById('product-form').reset();}}>
