@@ -41,41 +41,27 @@ function RetailerDashboard() {
   };
 
   const uploadMedia = async () => {
-    const urls = [];
+    const formDataObj = new FormData();
     for (let i = 0; i < mediaFiles.length; i++) {
       const file = mediaFiles[i];
-      const isVideo = file.type?.startsWith('video/');
-      let fileToUpload = file;
-
-      // Keep original file extension
-      const extension = file.name ? file.name.split('.').pop() : (isVideo ? 'mp4' : 'jpg');
-      const fileName = `media_${Date.now()}_${Math.random().toString(36).substring(7)}.${extension}`;
-      const storageRef = ref(storage, `products/${fileName}`);
-      
-      const uploadTask = uploadBytesResumable(storageRef, fileToUpload);
-
-      await new Promise((resolve, reject) => {
-        uploadTask.on('state_changed', 
-          (snapshot) => {
-            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-            setUploadProgress(`Uploading file ${i + 1} of ${mediaFiles.length}: ${Math.round(progress)}%`);
-          }, 
-          (error) => {
-            console.error("Firebase Upload Error:", error);
-            reject(new Error(error.message || 'Firebase storage upload failed'));
-          }, 
-          () => resolve()
-        );
-      });
-
-      const downloadURL = await getDownloadURL(storageRef);
-      urls.push({
-        url: downloadURL,
-        type: isVideo ? 'video' : 'image'
-      });
+      setUploadProgress(`Preparing file ${i + 1} of ${mediaFiles.length}...`);
+      // Use the raw file from the input to bypass any browser compression bugs
+      formDataObj.append('media', file, file.name || `media_${Date.now()}`);
     }
 
-    return urls;
+    setUploadProgress('Uploading to secure server (this may take a moment)...');
+    
+    const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/upload`, {
+      method: 'POST',
+      body: formDataObj,
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to upload media to backend server.');
+    }
+
+    const data = await response.json();
+    return data.urls;
   };
 
   const logHistory = async (productId, data) => {
