@@ -10,10 +10,12 @@ app.use(express.json());
 // Load Routers
 const aiRouter = require('./routes/ai');
 const uploadRouter = require('./routes/upload');
+const checkoutRouter = require('./routes/checkout');
 
 // Use Routers
 app.use('/api/ai', aiRouter);
 app.use('/api/upload', uploadRouter);
+app.use('/api/checkout', checkoutRouter);
 
 // Serve static files from the uploads directory
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
